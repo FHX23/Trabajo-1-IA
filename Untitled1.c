@@ -1,80 +1,186 @@
 #include <stdio.h>
-
-#define MAX_SIZE 10  // Tama駉 m醲imo de las matrices
+#include <conio.h>
+#include <stdlib.h>
+#include <windows.h> // Incluir para SetConsoleTextAttribute
+#define WALL_WIDTH 3
+#define CELL_WIDTH 2
+#define SPACE ' '
+#define MAX_SIZE 10 // Ajusta este valor seg煤n tus necesidades
+#define MAX_COLORS 10 // M谩ximo de colores disponibles
 
 void inicializarTablero(int board[MAX_SIZE][MAX_SIZE], int sector[MAX_SIZE][MAX_SIZE], int N) {
     // Inicializar el tablero y el sector
     for (int i = 0; i < N; i++) {
         for (int j = 0; j < N; j++) {
-            board[i][j] = 0;   // Espacio vac韔
+            board[i][j] = 0;   // Espacio vac铆o
             sector[i][j] = 0;  // Sin paredes
         }
     }
 }
 
-void printBoard(int board[MAX_SIZE][MAX_SIZE], int sector[MAX_SIZE][MAX_SIZE], int N) {
+void leerZonas(char zonas[MAX_SIZE][MAX_SIZE], int N, FILE *file) {
+    // Leer la matriz de zonas
     for (int i = 0; i < N; i++) {
-        // Imprimir la parte superior de las celdas
         for (int j = 0; j < N; j++) {
-            // Comprobar si hay pared arriba
-            if (sector[i][j] & 1) {  // Pared arriba
-                printf("+---");
-            } else {
-                printf("+   ");
+            fscanf(file, " %c", &zonas[i][j]); // Lee cada car谩cter
+        }
+    }
+}
+
+void printZonas(char zonas[MAX_SIZE][MAX_SIZE], int N) {
+    printf("Matriz de zonas:\n");
+    for (int i = 0; i < N; i++) {
+        for (int j = 0; j < N; j++) {
+            printf("%c ", zonas[i][j]);
+        }
+        printf("\n");
+    }
+}
+
+void setColor(int color) {
+    // Cambiar el color del texto en la consola
+    SetConsoleTextAttribute(GetStdHandle(STD_OUTPUT_HANDLE), color);
+}
+
+void resetColor() {
+    // Resetear el color a blanco (o el color por defecto)
+    SetConsoleTextAttribute(GetStdHandle(STD_OUTPUT_HANDLE), 7); // 7 es el color blanco
+}
+
+void printBoard(int board[MAX_SIZE][MAX_SIZE], int sector[MAX_SIZE][MAX_SIZE], char zonas[MAX_SIZE][MAX_SIZE], int N) {
+    for (int i = 0; i < N; i++) {
+        for (int j = 0; j < N; j++) {
+            // Pared superior
+            printf("+");
+            for (int k = 0; k < WALL_WIDTH; k++) {
+                printf("%c", (sector[i][j] & 1) ? '-' : SPACE);
             }
         }
         printf("+\n");
 
-        // Imprimir el contenido del tablero
+        // Contenido de la celda y paredes laterales
         for (int j = 0; j < N; j++) {
-            // Comprobar si hay pared a la izquierda
-            if (sector[i][j] & 8) {  // Pared izquierda
-                printf("|");
-            } else {
-                printf(" ");
+            // Pared izquierda
+            printf("%c", (sector[i][j] & 4) ? '|' : SPACE);
+
+            // Espacio adicional si hay una pared izquierda o si es la primera columna
+            if ((sector[i][j] & 4) || j == 0) {
+                printf("%c", SPACE);
             }
 
-            // Imprimir el valor del tablero
+            // Pintar las estrellas seg煤n la matriz de zonas
             if (board[i][j] == 1) {
-                printf(" * ");  // Estrella
+                int color = (zonas[i][j] - '0') % MAX_COLORS + 1; // Convertir a color (0-9) y evitar color 0
+                setColor(color);
+                printf("%*c", CELL_WIDTH, '*');
+                resetColor();
             } else {
-                printf("   ");  // Espacio vac韔
+                printf("%*c", CELL_WIDTH, SPACE);
             }
-        }
-        // Imprimir la pared derecha
-        if (sector[i][N-1] & 2) {  // Pared derecha
-            printf("|");
-        } else {
-            printf(" ");
+
+            // Pared derecha
+            printf("%c", (sector[i][j] & 2) ? '|' : SPACE);
         }
         printf("\n");
-    }
 
-    // Imprimir la parte inferior de las celdas
-    for (int j = 0; j < N; j++) {
-        // Comprobar si hay pared abajo
-        if (sector[N-1][j] & 4) {  // Pared abajo
-            printf("+---");
-        } else {
-            printf("+   ");
+        // Pared inferior
+        for (int j = 0; j < N; j++) {
+            printf("+");
+            for (int k = 0; k < WALL_WIDTH; k++) {
+                printf("%c", (sector[i][j] & 8) ? '-' : SPACE);
+            }
+        }
+        printf("+\n");
+    }
+}
+
+void fillBoardWithStars(int board[MAX_SIZE][MAX_SIZE], int N) {
+    for (int i = 0; i < N; i++) {
+        for (int j = 0; j < N; j++) {
+            board[i][j] = 1; // Set each cell to 1 (star)
         }
     }
-    printf("+\n");
+}
+
+// Verificar si se puede colocar una estrella en la posici贸n (row, col)
+int esSeguro(int board[MAX_SIZE][MAX_SIZE], int row, int col, int N) {
+    // Verificar la fila y la columna
+    for (int i = 0; i < N; i++) {
+        if (board[row][i] == 1 || board[i][col] == 1) {
+            return 0; // No se puede colocar
+        }
+    }
+    
+    // Verificar sectores y las celdas vecinas
+    int sectorRowStart = (row / 2) * 2; // Cambia esto seg煤n la divisi贸n de sectores
+    int sectorColStart = (col / 2) * 2; // Cambia esto seg煤n la divisi贸n de sectores
+
+    for (int i = sectorRowStart; i < sectorRowStart + 2; i++) {
+        for (int j = sectorColStart; j < sectorColStart + 2; j++) {
+            if (board[i][j] == 1) {
+                return 0; // No se puede colocar
+            }
+        }
+    }
+
+    // Verificar las celdas vecinas
+    for (int r = row - 1; r <= row + 1; r++) {
+        for (int c = col - 1; c <= col + 1; c++) {
+            if (r >= 0 && r < N && c >= 0 && c < N && board[r][c] == 1) {
+                return 0; // Vecino tiene estrella
+            }
+        }
+    }
+
+    return 1; // Se puede colocar
+}
+
+// Funci贸n de backtracking para resolver el problema
+int resolverEstrellas(int board[MAX_SIZE][MAX_SIZE], int N, int row, int col) {
+    if (row == N) {
+        return 1; // Soluci贸n encontrada
+    }
+
+    if (col == N) {
+        return resolverEstrellas(board, N, row + 1, 0); // Pasar a la siguiente fila
+    }
+
+    // Omitir la celda si ya hay una estrella
+    if (board[row][col] == 1) {
+        return resolverEstrellas(board, N, row, col + 1); // Continuar con la siguiente celda
+    }
+
+    // Intentar colocar una estrella en la celda actual
+    if (esSeguro(board, row, col, N)) {
+        board[row][col] = 1; // Colocar estrella
+
+        // Continuar con la siguiente celda
+        if (resolverEstrellas(board, N, row, col + 1)) {
+            return 1; // Soluci贸n encontrada
+        }
+
+        // Deshacer el movimiento
+        board[row][col] = 0; // Retirar estrella
+    }
+
+    // Intentar la siguiente celda
+    return resolverEstrellas(board, N, row, col + 1);
 }
 
 int main() {
     int N;
     int board[MAX_SIZE][MAX_SIZE];
     int sector[MAX_SIZE][MAX_SIZE];
+    char zonas[MAX_SIZE][MAX_SIZE];
 
-    // Abrir el archivo de entrada
+    // Abrir el archivo de input
     FILE *file = fopen("input.txt", "r");
     if (file == NULL) {
         perror("Error al abrir el archivo");
         return 1;
     }
 
-    // Leer el tama駉 de la matriz
+    // Leer el tama帽o de la matriz
     fscanf(file, "%d", &N);
     // Leer la cantidad de estrellas por sector, fila y columna
     int estrellasPorSector, estrellasPorFila, estrellasPorColumna;
@@ -99,12 +205,24 @@ int main() {
         }
     }
 
+    // Leer y mostrar la matriz de zonas
+    leerZonas(zonas, N, file);
+    printZonas(zonas, N);
+
     // Cerrar el archivo
     fclose(file);
 
-    // Imprimir el tablero
-    printBoard(board, sector, N);
+    // Imprimir el tablero inicial
+    printf("Tablero inicial:\n");
+    printBoard(board, sector, zonas, N);
+
+    // Resolver el problema
+    if (resolverEstrellas(board, N, 0, 0)) {
+        printf("Soluci贸n encontrada:\n");
+        printBoard(board, sector, zonas, N);
+    } else {
+        printf("No se encontr贸 soluci贸n.\n");
+    }
 
     return 0;
 }
-
